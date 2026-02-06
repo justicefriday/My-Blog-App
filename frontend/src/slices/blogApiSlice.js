@@ -1,48 +1,77 @@
 import { apiSlice } from './apiSlice';
 
-const BlOG_URL = '/api/blog';
+const BLOG_URL = '/api/blog'; // Fixed typo: BlOG_URL -> BLOG_URL
 
 export const blogApiSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         // Get MY blogs
         getMyBlogs: builder.query({
-            query: () => `${BlOG_URL}/my-blogs`,
-            method:'GET'
+            query: () => `${BLOG_URL}/my-blogs`,
+            providesTags: (result) => 
+                result
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'Blog', id })),
+                        { type: 'Blog', id: 'MY_LIST' },
+                      ]
+                    : [{ type: 'Blog', id: 'MY_LIST' }],
         }),
         
         // Get all blogs (public)
         getAllBlogs: builder.query({
-            query: () => `${BlOG_URL}`,
+            query: () => `${BLOG_URL}`,
+            providesTags: (result) => 
+                result
+                    ? [
+                        ...result.map(({ id }) => ({ type: 'Blog', id })),
+                        { type: 'Blog', id: 'ALL_LIST' },
+                      ]
+                    : [{ type: 'Blog', id: 'ALL_LIST' }],
         }),
         
         // Get single blog
         getBlogById: builder.query({
-            query: (id) => `${BlOG_URL}/${id}`,
-            // providesTags: (result, error, id) => [{ type: 'Blog', id }],
+            query: (id) => `${BLOG_URL}/${id}`,
+            providesTags: (result, error, id) => [{ type: 'Blog', id }],
         }),
         
         // Create blog
         createBlog: builder.mutation({
             query: (blogData) => ({
-                url: `${BlOG_URL}/create`,
+                url: `${BLOG_URL}/create`,
                 method: 'POST',
                 body: blogData,
             }),
+            invalidatesTags: [
+                { type: 'Blog', id: 'MY_LIST' },
+                { type: 'Blog', id: 'ALL_LIST' },
+            ],
         }),
         
-         updateBlog: builder.mutation({
+        // Update blog
+        updateBlog: builder.mutation({
             query: ({ id, ...data }) => ({
-                url: `${BlOG_URL}/${id}`,  
+                url: `${BLOG_URL}/${id}`,  
                 method: 'PUT',
                 body: data,  
             }),
+            invalidatesTags: (result, error, { id }) => [
+                { type: 'Blog', id },
+                { type: 'Blog', id: 'MY_LIST' },
+                { type: 'Blog', id: 'ALL_LIST' },
+            ],
         }),
+        
         // Delete blog
         deleteBlog: builder.mutation({
             query: (id) => ({
-                url: `${BlOG_URL}/${id}`,
+                url: `${BLOG_URL}/${id}`,
                 method: 'DELETE',
             }),
+            invalidatesTags: (result, error, id) => [
+                { type: 'Blog', id },
+                { type: 'Blog', id: 'MY_LIST' },
+                { type: 'Blog', id: 'ALL_LIST' },
+            ],
         }),
     }),
 });

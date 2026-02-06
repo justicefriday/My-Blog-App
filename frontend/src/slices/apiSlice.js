@@ -1,11 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-const baseQuery = fetchBaseQuery({ baseUrl: '' }) // empty base URL for now; is bacuse we use proxy at the vite, if not we can put here the backend URL eg 'http//localhost 5000'
+const baseQuery = fetchBaseQuery({ 
+    baseUrl: '', // Empty string works since we are using proxy
+    credentials: 'include', // Important for cookies
+});
 
 export const apiSlice = createApi({
     baseQuery,
-    tagTypes: ['User','Blog'], 
-    endpoints: (builder) => ({
-        
-    })
-})
+    tagTypes: ['User', 'Blog'], 
+    endpoints: (builder) => ({})
+});
