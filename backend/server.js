@@ -34,7 +34,7 @@ app.use('/api/blog', blogRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-  const frontendDistPath = path.join(__dirname, '../frontend/dist');
+  const frontendDistPath = path.join(__dirname, 'dist');
   
   // static files
   app.use(express.static(frontendDistPath));

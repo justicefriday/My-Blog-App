@@ -12,7 +12,7 @@ frontend/.env
 
 # Build outputs
 dist/
-frontend/dist/
+# frontend/dist/
 backend/dist/
 build/
 
