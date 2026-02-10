@@ -15,71 +15,70 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// CORS configuration
+// CORS - Allow all origins in production for testing
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? true  
-    : 'http://localhost:4000',
+  origin: true,
   credentials: true,
 }));
 
+// Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Logging middleware (helpful for debugging)
+// Request logger
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+  console.log(`📥 ${req.method} ${req.path}`);
   next();
 });
 
+// ========================================
+// API ROUTES - Handle these FIRST
+// ========================================
 app.use('/api/auth', authRoutes);
 app.use('/api/blog', blogRoutes);
 
+// Test route to verify API is working
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working!', timestamp: new Date() });
+});
+
+// ========================================
+// FRONTEND - Only in production
+// ========================================
 if (process.env.NODE_ENV === 'production') {
   const frontendDistPath = path.join(__dirname, 'dist');
+  console.log('📁 Frontend path:', frontendDistPath);
   
-  console.log('📁 Serving frontend from:', frontendDistPath);
+  // Serve static files ONLY for specific extensions
+  // This prevents it from catching /api routes
+  app.use('/assets', express.static(path.join(frontendDistPath, 'assets')));
+  app.use('/vite.svg', express.static(path.join(frontendDistPath, 'vite.svg')));
   
-  app.use(express.static(frontendDistPath));
-
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api/')) {
-      return next();
+  // Serve index.html for all other routes (but NOT /api)
+  app.get('*', (req, res) => {
+    // Double-check it's not an API route
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
     }
     
+    console.log('📄 Serving index.html for:', req.path);
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
   
 } else {
   app.get('/', (req, res) => {
-    res.send('API is running in development mode...');
+    res.json({ 
+      message: 'API running in development',
+      routes: ['/api/auth', '/api/blog', '/api/test']
+    });
   });
 }
-
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    res.status(404).json({ 
-      message: `Cannot ${req.method} ${req.path}`,
-      error: 'Route not found'
-    });
-  } else {
-    next();
-  }
-});
-
-// General error handler
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  });
-});
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(` Server running on port ${PORT}`);
   console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` API Routes: /api/auth, /api/blog`);
 });
