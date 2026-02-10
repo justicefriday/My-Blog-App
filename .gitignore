@@ -13,7 +13,7 @@ frontend/.env
 # Build outputs
 dist/
 # frontend/dist/
-backend/dist/
+# backend/dist/
 build/
 
 # OS files
