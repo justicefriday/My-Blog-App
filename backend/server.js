@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL || true  // Allow configured frontend or same origin
+    ? true  
     : 'http://localhost:4000',
   credentials: true,
 }));
@@ -28,7 +28,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// API Routes 
+//Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/blog', blogRoutes);
 
@@ -36,10 +36,16 @@ app.use('/api/blog', blogRoutes);
 if (process.env.NODE_ENV === 'production') {
   const frontendDistPath = path.join(__dirname, 'dist');
   
-  // static files
+  console.log('Serving frontend from:', frontendDistPath);
+  
+  // Serve static files
   app.use(express.static(frontendDistPath));
 
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 } else {
@@ -51,6 +57,6 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(` Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
