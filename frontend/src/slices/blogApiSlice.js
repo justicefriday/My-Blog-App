@@ -1,6 +1,5 @@
-import { apiSlice } from './apiSlice';
 
-const BLOG_URL = '/api/blog'; // Fixed typo: BlOG_URL -> BLOG_URL
+const BLOG_URL = '/api/blog'; 
 
 export const blogApiSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({

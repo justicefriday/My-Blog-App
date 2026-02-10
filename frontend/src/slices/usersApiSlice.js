@@ -1,4 +1,3 @@
-import { apiSlice } from "./apiSlice";
 
 const USER_URL = '/api/auth';
 

@@ -23,40 +23,63 @@ app.use(cors({
   credentials: true,
 }));
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-//Routes
+// Logging middleware (helpful for debugging)
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/blog', blogRoutes);
 
-// Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
   const frontendDistPath = path.join(__dirname, 'dist');
   
-  console.log('Serving frontend from:', frontendDistPath);
+  console.log('📁 Serving frontend from:', frontendDistPath);
   
-  // Serve static files
   app.use(express.static(frontendDistPath));
 
-  app.get('*', (req, res, next) => {
+  app.use((req, res, next) => {
     if (req.path.startsWith('/api/')) {
       return next();
     }
     
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
+  
 } else {
   app.get('/', (req, res) => {
     res.send('API is running in development mode...');
   });
 }
 
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({ 
+      message: `Cannot ${req.method} ${req.path}`,
+      error: 'Route not found'
+    });
+  } else {
+    next();
+  }
+});
+
+// General error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` Server running on port ${PORT}`);
+  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
 });
