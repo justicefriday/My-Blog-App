@@ -7,7 +7,7 @@ export default defineConfig({
     port: 4000,
     proxy: {
       '/api': {
-        target: 'https://my-blog-app-backend-122k.onrender.com'
+        target: 'https://my-blog-app-backend-122k.onrender.com',
         changeOrigin: true,
         secure: false,
       }
