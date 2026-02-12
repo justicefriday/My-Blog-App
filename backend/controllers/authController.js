@@ -1,115 +1,93 @@
-import asyncHandler from 'express-async-handler';
 import pool from '../config/db.js';
+import bcrypt from 'bcrypt';
+import asyncHandler from 'express-async-handler';
+import generateToken from '../utils/generateToke.js';  
+export const registerUser = asyncHandler(async (req, res) => {
+    const { username, email, password } = req.body;
+   
+    if (!username || !email || !password) {
+  return res.status(400).json({ message: 'Please provide all required fields' });
+}
+// checking email to avoid double user
+const emailCheck = await pool.query(
+  'SELECT id FROM users WHERE email = $1',
+  [email]
+);
 
-export const createPost = asyncHandler(async (req, res) => {
-  const userId = req.user.id;  
-  const { title, content } = req.body;
+if (emailCheck.rows.length > 0) {
+  return res.status(400).json({ message: 'Email already exists' });
+}
 
-  if (!title || !content) {
-    res.status(400);
-    throw new Error('Please provide title and content');
-  }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  const result = await pool.query(
-    'INSERT INTO posts (user_id, title, content) VALUES ($1, $2, $3) RETURNING *',
-    [userId, title, content]
-  );
+    const result = await pool.query(
+        'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email',
+        [username, email, hashedPassword]
+    );
 
-  res.status(201).json(result.rows[0]);
+    generateToken(res, result.rows[0].id);
+
+    res.status(201).json(result.rows[0]);
 });
 
-export const getAllPosts = asyncHandler(async (req, res) => {
-  const result = await pool.query(  
-    `SELECT posts.*, users.username 
-     FROM posts 
-     JOIN users ON posts.user_id = users.id
-     ORDER BY posts.created_at DESC`
-  );
+export const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+
+    const result = await pool.query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+    );
+
+    if (result.rows.length === 0) {
+        res.status(400);
+        throw new Error('Invalid email or password');
+    }
+
+    const user = result.rows[0];
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+        res.status(400);
+        throw new Error('Invalid email or password');
+    }
+
+    generateToken(res, user.id);
+
+    res.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email } });
+});
+
+
+export const logoutUser = asyncHandler(async (req, res) => {
   
-  res.json(result.rows);
+    res.clearCookie('jwt', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+});
+    res.json({ message: 'Logout successful' });
 });
 
-export const getPostById = asyncHandler(async (req, res) => {
-  const postId = req.params.id;
+export const getUserProfile = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const result = await pool.query(
+        'SELECT id, username, email FROM users WHERE id = $1',
+        [userId]
+    );
 
-  const result = await pool.query(
-    `SELECT posts.*, users.username 
-     FROM posts 
-     JOIN users ON posts.user_id = users.id
-     WHERE posts.id = $1`,
-    [postId]
-  );
-
-  if (result.rows.length === 0) {
-    res.status(404);
-    throw new Error('Post not found');
-  }
-
-  res.json(result.rows[0]);
+    res.json(result.rows[0]);
 });
 
-export const getPostsByUser = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-
-  const result = await pool.query(
-    'SELECT * FROM posts WHERE user_id = $1 ORDER BY created_at DESC',
-    [userId]
-  );
-
-  res.json(result.rows);
-});
-
-export const updatePost = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const postId = parseInt(req.params.id); 
-  const { title, content } = req.body;
-
-  if (!title || !content) {
-    res.status(400);
-    throw new Error('Title and content are required');
-  }
-
-  if (isNaN(postId)) {
-    res.status(400);
-    throw new Error('Invalid post ID');
-  }
-
-  const postCheck = await pool.query(
-    'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
-    [postId, userId]
-  );
-
-  if (postCheck.rows.length === 0) {
-    res.status(404);
-    throw new Error('Post not found or not authorized');
-  }
-
-  const updatedPost = await pool.query(
-    'UPDATE posts SET title = $1, content = $2 WHERE id = $3 RETURNING *',
-    [title, content, postId]
-  );
-
-  res.json(updatedPost.rows[0]);
-});
-
-export const deletePost = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const postId = req.params.id;
-
-  const postCheck = await pool.query(
-    'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
-    [postId, userId]
-  );
-
-  if (postCheck.rows.length === 0) {
-    res.status(404);
-    throw new Error('Post not found or not authorized');
-  }
-
-  await pool.query(
-    'DELETE FROM posts WHERE id = $1',
-    [postId]
-  );
-
-  res.json({ message: 'Post deleted successfully' });
+export const updateUserProfile = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { username, email, password } = req.body; 
+    let hashedPassword;
+    if (password) {
+        hashedPassword = await bcrypt.hash(password, 10);
+    }
+    const result = await pool.query(
+        'UPDATE users SET username = $1, email = $2, password = COALESCE($3, password) WHERE id = $4 RETURNING id, username, email',
+        [username, email, hashedPassword, userId]
+    );
+    res.json(result.rows[0]);
 });
