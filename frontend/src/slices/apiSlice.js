@@ -9,4 +9,4 @@ export const apiSlice = createApi({
     baseQuery,
     tagTypes: ['User', 'Blog'], 
     endpoints: (builder) => ({})
-});
+}); 
