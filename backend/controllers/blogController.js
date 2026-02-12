@@ -1,9 +1,8 @@
 import asyncHandler from 'express-async-handler';
-import db from '../config/db.js';
+import pool from '../config/db.js';
 
-// Create a new post
 export const createPost = asyncHandler(async (req, res) => {
-  const userId = req.user.id;  // Assume auth middleware sets req.user
+  const userId = req.user.id;  
   const { title, content } = req.body;
 
   if (!title || !content) {
@@ -11,7 +10,7 @@ export const createPost = asyncHandler(async (req, res) => {
     throw new Error('Please provide title and content');
   }
 
-  const result = await db.query(
+  const result = await pool.query(
     'INSERT INTO posts (user_id, title, content) VALUES ($1, $2, $3) RETURNING *',
     [userId, title, content]
   );
@@ -20,7 +19,7 @@ export const createPost = asyncHandler(async (req, res) => {
 });
 
 export const getAllPosts = asyncHandler(async (req, res) => {
-  const result = await db.query(
+  const result = await pool.query(  // ✅ Fixed!
     `SELECT posts.*, users.username 
      FROM posts 
      JOIN users ON posts.user_id = users.id
@@ -30,11 +29,10 @@ export const getAllPosts = asyncHandler(async (req, res) => {
   res.json(result.rows);
 });
 
-// Get a single post by ID (only if it belongs to user)
 export const getPostById = asyncHandler(async (req, res) => {
   const postId = req.params.id;
 
-  const result = await db.query(
+  const result = await pool.query(
     `SELECT posts.*, users.username 
      FROM posts 
      JOIN users ON posts.user_id = users.id
@@ -49,10 +47,11 @@ export const getPostById = asyncHandler(async (req, res) => {
 
   res.json(result.rows[0]);
 });
-export const getPostsByUser = asyncHandler(async (req, res) => {
-  const userId = req.user.id; // or from req.user.id if authenticated
 
-  const result = await db.query(
+export const getPostsByUser = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const result = await pool.query(
     'SELECT * FROM posts WHERE user_id = $1 ORDER BY created_at DESC',
     [userId]
   );
@@ -61,14 +60,10 @@ export const getPostsByUser = asyncHandler(async (req, res) => {
 });
 
 export const updatePost = asyncHandler(async (req, res) => {
-  
-
   const userId = req.user.id;
   const postId = parseInt(req.params.id); 
   const { title, content } = req.body;
 
-
-  // Validate inputs
   if (!title || !content) {
     res.status(400);
     throw new Error('Title and content are required');
@@ -79,41 +74,7 @@ export const updatePost = asyncHandler(async (req, res) => {
     throw new Error('Invalid post ID');
   }
 
-  try {
-    const postCheck = await db.query(
-      'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
-      [postId, userId]
-    );
-
-
-    if (postCheck.rows.length === 0) {
-      res.status(404);
-      throw new Error('Post not found or not authorized');
-    }
-
-    
-    const updatedPost = await db.query(
-      'UPDATE posts SET title = $1, content = $2 WHERE id = $3 RETURNING *',
-      [title, content, postId]
-    );
-
-
-    res.json(updatedPost.rows[0]);
-    
-  } catch (error) {
-    
-    throw error;
-  }
-});
-
-
-// Delete a post (only if it belongs to user)
-export const deletePost = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const postId = req.params.id;
-
-  // Check post ownership
-  const postCheck = await db.query(
+  const postCheck = await pool.query(
     'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
     [postId, userId]
   );
@@ -123,7 +84,29 @@ export const deletePost = asyncHandler(async (req, res) => {
     throw new Error('Post not found or not authorized');
   }
 
-  await db.query(
+  const updatedPost = await pool.query(
+    'UPDATE posts SET title = $1, content = $2 WHERE id = $3 RETURNING *',
+    [title, content, postId]
+  );
+
+  res.json(updatedPost.rows[0]);
+});
+
+export const deletePost = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const postId = req.params.id;
+
+  const postCheck = await pool.query(
+    'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
+    [postId, userId]
+  );
+
+  if (postCheck.rows.length === 0) {
+    res.status(404);
+    throw new Error('Post not found or not authorized');
+  }
+
+  await pool.query(
     'DELETE FROM posts WHERE id = $1',
     [postId]
   );
